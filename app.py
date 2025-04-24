@@ -1,6 +1,10 @@
 import streamlit as st
 from questions import questions
 import matplotlib.pyplot as plt
+from xhtml2pdf import pisa
+import tempfile
+from io import BytesIO
+import os
 
 st.set_page_config(page_title="Career Test | Practical EduSkills", layout="centered")
 
@@ -41,13 +45,17 @@ if name and phone:
 
         # --- Result Recommendation ---
         if bcom_score > bba_score:
-            st.markdown("🎯 **You are best suited for Practical B.Com.**")
-            st.info("You have strong analytical skills, attention to detail, and enjoy working with data and finance.")
+            result = "Practical B.Com"
+            message = "You have strong analytical skills, attention to detail, and enjoy working with data and finance."
         elif bba_score > bcom_score:
-            st.markdown("🎯 **You are best suited for Practical BBA.**")
-            st.info("You have great leadership, communication, and organizational skills — ideal for business and management.")
+            result = "Practical BBA"
+            message = "You have great leadership, communication, and organizational skills — ideal for business and management."
         else:
-            st.markdown("🎯 **You have a balanced personality. Both streams are worth exploring!**")
+            result = "Balanced Fit"
+            message = "You have a balanced personality. Both streams are worth exploring!"
+
+        st.markdown(f"🎯 **You are best suited for {result}.**")
+        st.info(message)
 
         # --- Score Breakdown ---
         st.markdown("### 📈 Score Breakdown")
@@ -70,6 +78,38 @@ if name and phone:
             ax.text(bar.get_x() + bar.get_width()/2.0, yval + 0.1, yval, ha='center', va='bottom')
 
         st.pyplot(fig)
+
+        # --- PDF Generation ---
+        def generate_pdf(name, phone, result, message, fig):
+            # Save chart image
+            chart_path = os.path.join(tempfile.gettempdir(), "chart.png")
+            fig.savefig(chart_path)
+
+            # Load and fill HTML template
+            with open("report_template.html", "r") as f:
+                html_template = f.read()
+
+            html_filled = html_template.replace("{{ name }}", name)\
+                                       .replace("{{ phone }}", phone)\
+                                       .replace("{{ result }}", result)\
+                                       .replace("{{ message }}", message)
+
+            pdf_path = os.path.join(tempfile.gettempdir(), f"{name}_career_report.pdf")
+            with open(pdf_path, "w+b") as result_file:
+                pisa.CreatePDF(BytesIO(html_filled.encode("utf-8")), dest=result_file)
+
+            return pdf_path
+
+        pdf_file_path = generate_pdf(name, phone, result, message, fig)
+
+        # --- Download Button ---
+        with open(pdf_file_path, "rb") as f:
+            st.download_button(
+                label="📥 Download Career Report (PDF)",
+                data=f,
+                file_name=f"{name}_Career_Report.pdf",
+                mime="application/pdf"
+            )
 
 else:
     st.warning("Please fill in your name and phone number to begin the test.")
